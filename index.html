@@ -245,7 +245,7 @@
       <div class="call-wrap">
         <button class="call-btn" id="callBtn">
           <span class="pulse-ring"></span>
-          📞 Call Us — (616) 463-8257
+          📞 Call Us — (616) 863-8257
         </button>
         <div class="toast" id="toast">📋 Number copied — dial from your phone!</div>
       </div>
@@ -259,7 +259,7 @@
       <div class="success-msg" id="successMsg">✅ Message sent! We'll be in touch soon.</div>
     </section>
 
-    <footer>© 2025 Hacks Homestead · (616) 463-8257</footer>
+    <footer>© 2025 Hacks Homestead · (616) 863-8257</footer>
   </div>
 
   <script>
@@ -309,13 +309,13 @@
 
     callBtn.addEventListener('click', () => {
       if (isMobile) {
-        window.location.href = 'tel:6164638257';
+        window.location.href = 'tel:6168638257';
       } else {
-        navigator.clipboard.writeText('(616) 463-8257').then(() => {
+        navigator.clipboard.writeText('(616) 863-8257').then(() => {
           toast.classList.add('show');
           setTimeout(() => toast.classList.remove('show'), 2800);
         }).catch(() => {
-          prompt('Copy this number:', '(616) 463-8257');
+          prompt('Copy this number:', '(616) 863-8257');
         });
       }
     });
