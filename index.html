@@ -29,8 +29,9 @@
       position: relative;
       z-index: 1;
       max-width: 1100px;
+      width: 100%;
       margin: 0 auto;
-      padding: 50px 24px 40px;
+      padding: clamp(20px, 5vw, 50px) clamp(14px, 4vw, 24px) clamp(20px, 4vw, 40px);
     }
 
     header { text-align: center; margin-bottom: 44px; }
@@ -56,7 +57,7 @@
 
     h1 {
       font-family: 'Playfair Display', serif;
-      font-size: 2.6rem;
+      font-size: clamp(1.7rem, 7vw, 2.6rem);
       color: #fff;
       text-align: left;
       line-height: 1.1;
@@ -78,14 +79,16 @@
       background: linear-gradient(135deg, #2d6a4f, #40916c);
       color: #fff;
       border: none;
-      padding: 16px 36px;
+      padding: clamp(12px, 3vw, 16px) clamp(20px, 5vw, 36px);
       border-radius: 50px;
-      font-size: 1.1rem;
+      font-size: clamp(0.85rem, 2.5vw, 1.1rem);
       font-weight: 600;
       font-family: 'Inter', sans-serif;
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
       box-shadow: 0 4px 20px rgba(45,106,79,0.5);
+      white-space: nowrap;
+      max-width: 100%;
     }
 
     .call-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(45,106,79,0.6); }
@@ -146,7 +149,8 @@
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 20px;
-      padding: 28px 24px;
+      padding: clamp(18px, 4vw, 28px) clamp(14px, 4vw, 24px);
+      min-width: 0;
     }
 
     .card h2 {
@@ -195,6 +199,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 10px;
@@ -206,7 +212,7 @@
     .item-name { color: #fff; font-size: 0.9rem; font-weight: 500; flex: 1; }
     .item-unit { color: rgba(255,255,255,0.4); font-size: 0.75rem; margin-left: 6px; }
 
-    .qty-ctrl { display: flex; align-items: center; gap: 8px; }
+    .qty-ctrl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     .qty-btn {
       background: rgba(255,255,255,0.15);
@@ -257,14 +263,32 @@
       display: block;
     }
 
+    .field-error {
+      display: none;
+      color: #ff5c5c;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-top: -2px;
+      margin-bottom: 6px;
+    }
+
+    .field-error.show { display: block; }
+
+    #cooldownError {
+      margin-top: 10px;
+      margin-bottom: 0;
+      text-align: center;
+    }
+
     input[type="text"], input[type="email"], textarea {
       width: 100%;
+      max-width: 100%;
       padding: 12px 14px;
       border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(255,255,255,0.08);
       color: #fff;
-      font-size: 0.95rem;
+      font-size: 16px;
       font-family: 'Inter', sans-serif;
       outline: none;
       transition: border 0.2s;
@@ -409,8 +433,10 @@
     }
 
     @media (max-width: 480px) {
-      h1 { font-size: 2rem; }
-      .call-btn { font-size: 1rem; padding: 14px 24px; }
+      .logo-icon { font-size: 2.2rem; }
+      .logo-wrap { gap: 10px; }
+      .cat-tab { font-size: 0.75rem; padding: 6px 10px; }
+      .item-name { font-size: 0.85rem; }
     }
   </style>
 </head>
@@ -444,10 +470,12 @@
       <p class="sub">Fill out your info and we'll get back to you soon.</p>
 
       <label class="field-label">Your Name</label>
+      <div class="field-error" id="nameError">Please enter your real name</div>
       <input type="text" id="nameField" placeholder="Jane Smith" autocomplete="off" />
 
       <label class="field-label">Your Email</label>
-      <input type="email" id="emailField" placeholder="you@email.com" autocomplete="off" />
+      <div class="field-error" id="emailError">Please enter a valid @gmail.com email address</div>
+      <input type="email" id="emailField" placeholder="you@gmail.com" autocomplete="off" />
 
       <label class="field-label">Delivery Address</label>
       <input type="text" id="addressField" placeholder="123 Main St, City, MI" autocomplete="off" />
@@ -461,6 +489,7 @@
       </div>
 
       <button class="send-btn" id="sendBtn">Send Order / Message ✉️</button>
+      <div class="field-error" id="cooldownError">You can only send one message every 2 hours. Please try again later.</div>
       <div class="success-msg" id="successMsg">✅ Sent! We'll be in touch soon.</div>
     </div>
 
@@ -674,20 +703,103 @@
     return '\n\nORDER:\n' + keys.map(k => `- ${orderMap[k].qty} ${orderMap[k].unit} ${k}`).join('\n');
   }
 
+  // ----- 2-hour send cooldown (stored locally on this device/browser) -----
+  const COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
+  const COOLDOWN_KEY = 'hh_last_submit_time';
+  const cooldownError = document.getElementById('cooldownError');
+  const sendBtn = document.getElementById('sendBtn');
+  let cooldownTimer = null;
+
+  function getRemainingCooldown() {
+    const last = parseInt(localStorage.getItem(COOLDOWN_KEY) || '0', 10);
+    const elapsed = Date.now() - last;
+    return Math.max(0, COOLDOWN_MS - elapsed);
+  }
+
+  function formatRemaining(ms) {
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
+
+  function refreshCooldownUI() {
+    const remaining = getRemainingCooldown();
+    if (remaining > 0) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.6';
+      sendBtn.style.cursor = 'not-allowed';
+      cooldownError.textContent = `You can only send one message every 2 hours. Please try again in ${formatRemaining(remaining)}.`;
+      cooldownError.classList.add('show');
+      if (!cooldownTimer) {
+        cooldownTimer = setInterval(refreshCooldownUI, 30000);
+      }
+    } else {
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = '';
+      sendBtn.style.cursor = '';
+      cooldownError.classList.remove('show');
+      if (cooldownTimer) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = null;
+      }
+    }
+  }
+
+  refreshCooldownUI();
+
   // Send button
+  document.getElementById('nameField').addEventListener('input', () => {
+    document.getElementById('nameError').classList.remove('show');
+  });
+  document.getElementById('emailField').addEventListener('input', () => {
+    document.getElementById('emailError').classList.remove('show');
+  });
+
   document.getElementById('sendBtn').addEventListener('click', async () => {
+    // Re-check cooldown right before sending so it can't be bypassed
+    if (getRemainingCooldown() > 0) {
+      refreshCooldownUI();
+      return;
+    }
+
     const name = document.getElementById('nameField').value.trim();
     const email = document.getElementById('emailField').value.trim();
     const address = document.getElementById('addressField').value.trim();
     const message = document.getElementById('messageBox').value.trim();
     const orderKeys = Object.keys(orderMap);
 
-    if (!name) { alert('Please enter your name.'); return; }
-    if (!email) { alert('Please enter your email.'); return; }
-    if (!address) { alert('Please enter your delivery address.'); return; }
-    if (orderKeys.length === 0 && !message) { alert('Please add at least one item or leave a message.'); return; }
+    const nameError = document.getElementById('nameError');
+    const emailError = document.getElementById('emailError');
+    nameError.classList.remove('show');
+    emailError.classList.remove('show');
 
-    const sendBtn = document.getElementById('sendBtn');
+    const bannedWords = ['fuck', 'fucker', 'nigger', 'nigga', 'bitch', 'shit', 'retard'];
+    const lowerName = name.toLowerCase();
+    const containsBannedWord = bannedWords.some(word => lowerName.includes(word));
+
+    let hasError = false;
+
+    if (!name || containsBannedWord) {
+      nameError.classList.add('show');
+      hasError = true;
+    }
+    if (!email || !email.toLowerCase().endsWith('@gmail.com')) {
+      emailError.classList.add('show');
+      hasError = true;
+    }
+    if (!address) {
+      alert('Please enter your delivery address.');
+      hasError = true;
+    }
+    if (orderKeys.length === 0 && !message) {
+      alert('Please add at least one item or leave a message.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     const successMsg = document.getElementById('successMsg');
     sendBtn.textContent = 'Sending...';
     sendBtn.disabled = true;
@@ -710,10 +822,17 @@
         document.getElementById('emailField').value = '';
         document.getElementById('addressField').value = '';
         document.getElementById('messageBox').value = '';
+        nameError.classList.remove('show');
+        emailError.classList.remove('show');
         Object.keys(orderMap).forEach(k => delete orderMap[k]);
         document.querySelectorAll('.qty-num').forEach(el => el.textContent = '0');
         document.getElementById('orderSummary').style.display = 'none';
         setTimeout(() => successMsg.style.display = 'none', 5000);
+
+        // Start the 2-hour cooldown
+        localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+        refreshCooldownUI();
+        return;
       } else {
         alert('Something went wrong. Please try again!');
       }
@@ -724,6 +843,7 @@
     sendBtn.textContent = 'Send Order / Message ✉️';
     sendBtn.disabled = false;
   });
+
 </script>
 
 </body>
