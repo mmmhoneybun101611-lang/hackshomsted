@@ -280,6 +280,54 @@
       text-align: center;
     }
 
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.55);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show { display: flex; }
+
+    .modal-box {
+      background: #c0392b;
+      color: #fff;
+      padding: 28px 32px;
+      border-radius: 14px;
+      text-align: center;
+      max-width: 340px;
+      width: 90%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      animation: popIn 0.2s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box p {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .modal-ok-btn {
+      background: #fff;
+      color: #c0392b;
+      border: none;
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+    }
+
     input[type="text"], input[type="email"], textarea {
       width: 100%;
       max-width: 100%;
@@ -378,20 +426,6 @@
       background: rgba(255,92,92,0.15);
     }
 
-    .unit-select {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.25);
-      color: #fff;
-      padding: 5px 8px;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      margin-right: 4px;
-    }
-
-    .unit-select option { background: #3a3a3a; color: #fff; }
-
     .send-btn {
       width: 100%;
       background: linear-gradient(135deg, #1565c0, #1976d2);
@@ -469,9 +503,9 @@
       <h2>Send Us a Message</h2>
       <p class="sub">Fill out your info and we'll get back to you soon.</p>
 
-      <label class="field-label">Your Name</label>
+      <label class="field-label">Your First Name</label>
       <div class="field-error" id="nameError">Please enter your real name</div>
-      <input type="text" id="nameField" placeholder="Jane Smith" autocomplete="off" />
+      <input type="text" id="nameField" placeholder="Jane" autocomplete="off" />
 
       <label class="field-label">Your Email</label>
       <div class="field-error" id="emailError">Please enter a valid @gmail.com email address</div>
@@ -525,13 +559,9 @@
             <button class="add-btn">Add</button>
           </div>
         </div>
-        <div class="item-row" data-cat="fruit" data-special="strawberries">
-          <span class="item-name">Strawberries</span>
+        <div class="item-row" data-cat="fruit">
+          <span class="item-name">Strawberries <span class="item-unit">/ pint</span></span>
           <div class="qty-ctrl">
-            <select class="unit-select" id="strawberryUnit">
-              <option value="pint">pint</option>
-              <option value="quart">quart</option>
-            </select>
             <button class="qty-btn minus">−</button>
             <span class="qty-num">0</span>
             <button class="qty-btn plus">+</button>
@@ -571,6 +601,13 @@
   </div>
 
   <footer>© 2025 Hacks Homestead · (616) 863-8257</footer>
+</div>
+
+<div class="modal-overlay" id="qtyModalOverlay">
+  <div class="modal-box">
+    <p>Please add a quantity!</p>
+    <button class="modal-ok-btn" id="qtyModalOk">OK</button>
+  </div>
 </div>
 
 <script>
@@ -633,7 +670,6 @@
     const nameEl = row.querySelector('.item-name');
     const name = nameEl.childNodes[0].textContent.trim();
     const unitEl = row.querySelector('.item-unit');
-    const selectEl = row.querySelector('.unit-select');
     const qtyEl = row.querySelector('.qty-num');
     const addBtn = row.querySelector('.add-btn');
 
@@ -647,9 +683,12 @@
 
     addBtn.addEventListener('click', () => {
       const q = parseInt(qtyEl.textContent);
-      if (q === 0) { alert('Please add a quantiy'); return; }
-      const unit = selectEl ? selectEl.value : (unitEl ? unitEl.textContent.trim() : '');
-      const key = selectEl ? name + ' (' + unit + ')' : name;
+      if (q === 0) {
+        document.getElementById('qtyModalOverlay').classList.add('show');
+        return;
+      }
+      const unit = unitEl ? unitEl.textContent.trim() : '';
+      const key = name;
       orderMap[key] = { qty: q, unit };
       addBtn.textContent = '✓ Added';
       addBtn.classList.add('added');
@@ -703,12 +742,12 @@
     return '\n\nORDER:\n' + keys.map(k => `- ${orderMap[k].qty} ${orderMap[k].unit} ${k}`).join('\n');
   }
 
-  // ----- 2-hour send cooldown (stored locally on this device/browser) -----
+  const sendBtn = document.getElementById('sendBtn');
+  const cooldownError = document.getElementById('cooldownError');
+
+  // 2-hour send cooldown (stored locally on this device/browser)
   const COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
   const COOLDOWN_KEY = 'hh_last_submit_time';
-  const cooldownError = document.getElementById('cooldownError');
-  const sendBtn = document.getElementById('sendBtn');
-  let cooldownTimer = null;
 
   function getRemainingCooldown() {
     const last = parseInt(localStorage.getItem(COOLDOWN_KEY) || '0', 10);
@@ -724,30 +763,15 @@
     return `${minutes}m`;
   }
 
-  function refreshCooldownUI() {
-    const remaining = getRemainingCooldown();
-    if (remaining > 0) {
-      sendBtn.disabled = true;
-      sendBtn.style.opacity = '0.6';
-      sendBtn.style.cursor = 'not-allowed';
-      cooldownError.textContent = `You can only send one message every 2 hours. Please try again in ${formatRemaining(remaining)}.`;
-      cooldownError.classList.add('show');
-      if (!cooldownTimer) {
-        cooldownTimer = setInterval(refreshCooldownUI, 30000);
-      }
-    } else {
-      sendBtn.disabled = false;
-      sendBtn.style.opacity = '';
-      sendBtn.style.cursor = '';
-      cooldownError.classList.remove('show');
-      if (cooldownTimer) {
-        clearInterval(cooldownTimer);
-        cooldownTimer = null;
-      }
+  // Quantity warning modal
+  document.getElementById('qtyModalOk').addEventListener('click', () => {
+    document.getElementById('qtyModalOverlay').classList.remove('show');
+  });
+  document.getElementById('qtyModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'qtyModalOverlay') {
+      e.target.classList.remove('show');
     }
-  }
-
-  refreshCooldownUI();
+  });
 
   // Send button
   document.getElementById('nameField').addEventListener('input', () => {
@@ -758,11 +782,14 @@
   });
 
   document.getElementById('sendBtn').addEventListener('click', async () => {
-    // Re-check cooldown right before sending so it can't be bypassed
-    if (getRemainingCooldown() > 0) {
-      refreshCooldownUI();
+    // Only show the cooldown message when they actually try to send
+    const remaining = getRemainingCooldown();
+    if (remaining > 0) {
+      cooldownError.textContent = `You can only send one message every 2 hours. Please try again in ${formatRemaining(remaining)}.`;
+      cooldownError.classList.add('show');
       return;
     }
+    cooldownError.classList.remove('show');
 
     const name = document.getElementById('nameField').value.trim();
     const email = document.getElementById('emailField').value.trim();
@@ -831,7 +858,9 @@
 
         // Start the 2-hour cooldown
         localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
-        refreshCooldownUI();
+
+        sendBtn.textContent = 'Send Order / Message ✉️';
+        sendBtn.disabled = false;
         return;
       } else {
         alert('Something went wrong. Please try again!');
