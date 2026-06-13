@@ -320,14 +320,37 @@
       }
     });
 
-    // Send button (hooked up to Formspree later)
-    document.getElementById('sendBtn').addEventListener('click', () => {
+    // Send button — Formspree
+    document.getElementById('sendBtn').addEventListener('click', async () => {
       const msg = document.getElementById('messageBox').value.trim();
       if (!msg) { alert('Please type a message first!'); return; }
+
+      const sendBtn = document.getElementById('sendBtn');
       const successMsg = document.getElementById('successMsg');
-      successMsg.style.display = 'block';
-      document.getElementById('messageBox').value = '';
-      setTimeout(() => successMsg.style.display = 'none', 4000);
+
+      sendBtn.textContent = 'Sending...';
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch('https://formspree.io/f/mpqekayd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+
+        if (res.ok) {
+          successMsg.style.display = 'block';
+          document.getElementById('messageBox').value = '';
+          setTimeout(() => successMsg.style.display = 'none', 4000);
+        } else {
+          alert('Something went wrong. Please try again!');
+        }
+      } catch (err) {
+        alert('Could not send message. Check your connection and try again.');
+      }
+
+      sendBtn.textContent = 'Send Message ✉️';
+      sendBtn.disabled = false;
     });
   </script>
 
