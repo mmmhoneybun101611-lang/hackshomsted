@@ -523,7 +523,7 @@
       </div>
 
       <button class="send-btn" id="sendBtn">Send Order / Message ✉️</button>
-      <div class="field-error" id="cooldownError">You can only send one message every 2 hours. Please try again later.</div>
+      <div class="field-error" id="cooldownError">You can only send one message every 30 minutes. Please try again later.</div>
       <div class="success-msg" id="successMsg">✅ Sent! We'll be in touch soon.</div>
     </div>
 
@@ -745,9 +745,10 @@
   const sendBtn = document.getElementById('sendBtn');
   const cooldownError = document.getElementById('cooldownError');
 
-  // 2-hour send cooldown (stored locally on this device/browser)
-  const COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
-  const COOLDOWN_KEY = 'hh_last_submit_time';
+  // 30-minute send cooldown
+  // Key changed from hh_last_submit_time to hh_last_submit_v2 to reset everyone's previous cooldown
+  const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+  const COOLDOWN_KEY = 'hh_last_submit_v2';
 
   function getRemainingCooldown() {
     const last = parseInt(localStorage.getItem(COOLDOWN_KEY) || '0', 10);
@@ -785,7 +786,7 @@
     // Only show the cooldown message when they actually try to send
     const remaining = getRemainingCooldown();
     if (remaining > 0) {
-      cooldownError.textContent = `You can only send one message every 2 hours. Please try again in ${formatRemaining(remaining)}.`;
+      cooldownError.textContent = `You can only send one message every 30 minutes. Please try again in ${formatRemaining(remaining)}.`;
       cooldownError.classList.add('show');
       return;
     }
@@ -856,7 +857,7 @@
         document.getElementById('orderSummary').style.display = 'none';
         setTimeout(() => successMsg.style.display = 'none', 5000);
 
-        // Start the 2-hour cooldown
+        // Start the 30-minute cooldown
         localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
 
         sendBtn.textContent = 'Send Order / Message ✉️';
